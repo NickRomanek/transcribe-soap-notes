@@ -1,0 +1,941 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Scribe - Medical Transcription</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 1.1em;
+        }
+
+        .upload-area {
+            padding: 40px;
+            text-align: center;
+        }
+
+        .drop-zone {
+            border: 3px dashed #3498db;
+            border-radius: 15px;
+            padding: 60px 20px;
+            margin: 20px 0;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: #2980b9;
+            background-color: #f8f9fa;
+            transform: scale(1.02);
+        }
+
+        .drop-zone p {
+            font-size: 1.2em;
+            color: #666;
+            margin-bottom: 10px;
+        }
+
+        .drop-zone .icon {
+            font-size: 3em;
+            color: #3498db;
+            margin-bottom: 20px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #3498db 0%, #2980b9 100%);
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 1.1em;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(52, 152, 219, 0.3);
+        }
+
+        .btn:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .status {
+            padding: 20px 40px;
+            display: none;
+        }
+
+        .status.active {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background-color: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2ecc71);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .upload-progress-bar {
+            width: 100%;
+            height: 15px;
+            background-color: #ecf0f1;
+            border-radius: 8px;
+            overflow: hidden;
+            margin: 10px 0;
+        }
+
+        .upload-progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #f39c12, #e67e22);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        .status-text {
+            font-size: 1.1em;
+            color: #2c3e50;
+            margin: 10px 0;
+        }
+
+        .file-path {
+            font-size: 0.9em;
+            color: #7f8c8d;
+            font-style: italic;
+            margin-top: 5px;
+        }
+
+        .results {
+            padding: 40px;
+            display: none;
+        }
+
+        .results.active {
+            display: block;
+        }
+
+        .soap-note {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+        }
+
+        .soap-note h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+        }
+
+        .soap-section {
+            margin: 15px 0;
+        }
+
+        .soap-section h4 {
+            color: #3498db;
+            margin-bottom: 5px;
+        }
+
+        .transcript {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .speaker-line {
+            margin: 10px 0;
+            padding: 10px;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #3498db;
+        }
+
+        .speaker-name {
+            font-weight: bold;
+            color: #2c3e50;
+        }
+
+        .speaker-text {
+            margin-top: 5px;
+            color: #555;
+        }
+
+        .error {
+            background: #e74c3c;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .success {
+            background: #27ae60;
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #3498db;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .file-info {
+            background: #e8f5e8;
+            border: 2px solid #27ae60;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 15px 0;
+            display: none;
+        }
+
+        .file-info.active {
+            display: block;
+        }
+
+        .file-name {
+            font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .file-size {
+            color: #7f8c8d;
+            font-size: 0.9em;
+        }
+
+        .upload-success {
+            background: #d4edda;
+            border-color: #28a745;
+            color: #155724;
+        }
+
+        .upload-error {
+            background: #f8d7da;
+            border-color: #dc3545;
+            color: #721c24;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎯 AI Scribe</h1>
+            <p>Offline Medical Transcription & SOAP Note Generation</p>
+        </div>
+
+        <div class="upload-area">
+            <div class="drop-zone" id="dropZone">
+                <div class="icon">🎙️</div>
+                <p>Drag & drop your WAV file here</p>
+                <p>or click to browse</p>
+                <input type="file" id="fileInput" class="file-input" accept=".wav">
+            </div>
+            
+            <div class="file-info" id="fileInfo">
+                <div class="file-name" id="fileName"></div>
+                <div class="file-size" id="fileSize"></div>
+            </div>
+            
+            <button class="btn" id="uploadBtn" disabled>Start Transcription</button>
+            <button class="btn" id="checkOutputBtn" style="display: none; background: linear-gradient(135deg, #27ae60 0%, #2ecc71 100%);">Check Output Folder</button>
+        </div>
+
+        <div class="status" id="status">
+            <h3>Processing Status</h3>
+            <div class="upload-progress-bar" id="uploadProgressBar" style="display: none;">
+                <div class="upload-progress-fill" id="uploadProgressFill"></div>
+            </div>
+            <div class="progress-bar">
+                <div class="progress-fill" id="progressFill"></div>
+            </div>
+            <div class="status-text" id="statusText">Initializing...</div>
+            <div class="file-path" id="filePath"></div>
+        </div>
+
+        <div class="results" id="results">
+            <h3>Transcription Results</h3>
+            <div class="soap-note" id="soapNote"></div>
+            <div class="transcript" id="transcript"></div>
+        </div>
+    </div>
+
+    <script>
+        // Configuration - Use same origin as frontend (since both are served from same server)
+        const API_BASE_URL = window.location.origin;
+
+        let currentJobId = null;
+        let statusInterval = null;
+
+        // DOM elements
+        const dropZone = document.getElementById('dropZone');
+        const fileInput = document.getElementById('fileInput');
+        const uploadBtn = document.getElementById('uploadBtn');
+        const checkOutputBtn = document.getElementById('checkOutputBtn');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const status = document.getElementById('status');
+        const statusText = document.getElementById('statusText');
+        const progressFill = document.getElementById('progressFill');
+        const uploadProgressBar = document.getElementById('uploadProgressBar');
+        const uploadProgressFill = document.getElementById('uploadProgressFill');
+        const filePath = document.getElementById('filePath');
+        const results = document.getElementById('results');
+        const soapNote = document.getElementById('soapNote');
+        const transcript = document.getElementById('transcript');
+
+        // Event listeners
+        dropZone.addEventListener('click', () => fileInput.click());
+        dropZone.addEventListener('dragover', handleDragOver);
+        dropZone.addEventListener('drop', handleDrop);
+        fileInput.addEventListener('change', handleFileSelect);
+        uploadBtn.addEventListener('click', uploadFile);
+        checkOutputBtn.addEventListener('click', checkForCompletedFiles);
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        }
+
+        function handleFileSelect(e) {
+            const file = e.target.files[0];
+            if (file) {
+                handleFile(file);
+            }
+        }
+
+        function handleFile(file) {
+            if (!file.name.toLowerCase().endsWith('.wav')) {
+                showError('Please select a WAV file');
+                return;
+            }
+
+            // Reset UI from any previous run
+            document.querySelectorAll('.error').forEach(e => e.remove());
+            status.classList.remove('active');
+            results.classList.remove('active');
+            if (statusInterval) clearInterval(statusInterval);
+            uploadBtn.style.display = 'block';
+            checkOutputBtn.style.display = 'none';
+            
+            // Show file information
+            fileInfo.className = 'file-info active';
+            fileName.textContent = file.name;
+            fileSize.textContent = `Size: ${formatFileSize(file.size)}`;
+            
+            uploadBtn.disabled = false;
+            uploadBtn.innerHTML = 'Start Transcription';
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+        }
+
+        async function uploadFile() {
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            // Reset UI
+            document.querySelectorAll('.error').forEach(e => e.remove());
+            uploadBtn.disabled = true;
+            uploadBtn.innerHTML = '<span class="loading"></span> Uploading...';
+            
+            fileInfo.className = 'file-info active';
+            fileName.textContent = `Uploading: ${file.name}`;
+            
+            const formData = new FormData();
+            formData.append('file', file);
+
+            // Show status immediately to prepare for polling
+            showStatus();
+            statusText.textContent = 'Uploading file...';
+            progressFill.style.width = '5%';
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/transcribe`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                if (!response.ok) {
+                    const errorData = await response.json().catch(() => ({ detail: 'Unknown server error' }));
+                    throw new Error(`Server error: ${errorData.detail}`);
+                }
+
+                const data = await response.json();
+                currentJobId = data.job_id;
+                
+                fileInfo.classList.add('upload-success');
+                fileName.textContent = `✅ Upload Complete: ${file.name}`;
+                fileSize.textContent = `Job ID: ${currentJobId}`;
+                
+                uploadBtn.style.display = 'none';
+                startStatusPolling();
+
+            } catch (error) {
+                console.error('Upload error:', error);
+                
+                // Try to find a job for this file by checking recent output
+                const fileBaseName = file.name.replace(/\.[^/.]+$/, ""); // Remove extension
+                const potentialJobId = await findJobByFilename(fileBaseName);
+                
+                if (potentialJobId) {
+                    console.log(`Found potential job for file: ${potentialJobId}`);
+                    currentJobId = potentialJobId;
+                    fileInfo.classList.add('upload-success');
+                    fileName.textContent = `🔄 Reconnected to processing: ${file.name}`;
+                    fileSize.textContent = `Job ID: ${currentJobId}`;
+                    uploadBtn.style.display = 'none';
+                    startStatusPolling();
+                } else {
+                    showError(`Upload interrupted, but processing may be continuing in background. Check the output files below or retry upload.`);
+                    fileInfo.classList.add('upload-error');
+                    fileName.textContent = `⚠️ Upload Interrupted: ${file.name}`;
+                    uploadBtn.disabled = false;
+                    uploadBtn.innerHTML = 'Retry Transcription';
+                    checkOutputBtn.style.display = 'inline-block';
+                    
+                    // Still try to check for completion periodically
+                    setTimeout(() => autoCheckForCompletion(fileBaseName), 10000); // Check after 10s
+                }
+            }
+        }
+
+        async function findJobByFilename(fileBaseName) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/output-files`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const recentFile = data.files.find(f => f.filename.startsWith(fileBaseName) && f.filename.endsWith('.json'));
+                    if (recentFile) {
+                        // Try to find active job by checking status endpoints
+                        // This is a best-effort attempt
+                        const timestamp = Math.floor(Date.now() / 1000);
+                        for (let i = 0; i < 5; i++) {
+                            const testJobId = `job_${timestamp - i}_1`;
+                            try {
+                                const statusResp = await fetch(`${API_BASE_URL}/status/${testJobId}`);
+                                if (statusResp.ok) {
+                                    return testJobId;
+                                }
+                            } catch (e) {
+                                // Continue searching
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.log('Could not search for existing job:', e);
+            }
+            return null;
+        }
+
+        async function autoCheckForCompletion(fileBaseName) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/output-files`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const newFile = data.files.find(f => 
+                        f.filename.startsWith(fileBaseName) && 
+                        f.filename.endsWith('.json') &&
+                        (Date.now() / 1000 - f.modified) < 300 // Modified within last 5 minutes
+                    );
+                    
+                    if (newFile) {
+                        // File appeared! Show completion
+                        document.querySelectorAll('.error').forEach(e => e.remove());
+                        fileInfo.classList.remove('upload-error');
+                        fileInfo.classList.add('upload-success');
+                        fileName.textContent = `✅ Processing Complete: ${fileBaseName}`;
+                        fileSize.textContent = `Found completed file: ${newFile.filename}`;
+                        
+                        showResults();
+                        await loadCompletedResults(fileBaseName);
+                        return;
+                    }
+                }
+                
+                // If not found, check again in 10 seconds
+                setTimeout(() => autoCheckForCompletion(fileBaseName), 10000);
+            } catch (e) {
+                console.error('Auto-check failed:', e);
+            }
+        }
+
+        async function loadCompletedResults(fileBaseName) {
+            try {
+                const response = await fetch(`${API_BASE_URL}/download/${fileBaseName}.json`);
+                if (response.ok) {
+                    const results = await response.json();
+                    displayResults(results);
+                }
+                
+                const txtResponse = await fetch(`${API_BASE_URL}/download/${fileBaseName}.txt`);
+                if (txtResponse.ok) {
+                    const transcriptText = await txtResponse.text();
+                    displayTranscript(transcriptText);
+                }
+            } catch (e) {
+                console.error('Failed to load completed results:', e);
+            }
+        }
+
+        function showStatus() {
+            status.classList.add('active');
+            results.classList.remove('active');
+            uploadProgressBar.style.display = 'block';
+        }
+
+        function startStatusPolling() {
+            if (statusInterval) clearInterval(statusInterval);
+            
+            console.log(`Starting status polling for job: ${currentJobId}`);
+            
+            statusInterval = setInterval(async () => {
+                try {
+                    console.log(`Polling status for job: ${currentJobId}`);
+                    const response = await fetch(`${API_BASE_URL}/status/${currentJobId}`);
+                    
+                    if (!response.ok) {
+                        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    }
+                    
+                    const data = await response.json();
+                    console.log('Status update received:', data);
+                    
+                    updateStatus(data);
+                    
+                    if (data.status === 'completed' || data.status === 'error') {
+                        clearInterval(statusInterval);
+                        statusInterval = null;
+                        console.log(`Polling stopped. Final status: ${data.status}`);
+                        
+                        if (data.status === 'completed') {
+                            await showResults();
+                        }
+                    }
+                } catch (error) {
+                    console.error('Status polling error:', error);
+                    // Don't stop polling on network errors, just log them
+                    statusText.innerHTML = `🔄 Checking status... (${error.message})`;
+                }
+            }, 2000); // Poll every 2 seconds for better performance
+        }
+
+        function updateStatus(data) {
+            // Update upload progress
+            if (data.upload_progress !== undefined) {
+                uploadProgressFill.style.width = `${data.upload_progress}%`;
+                if (data.upload_progress < 100) {
+                    uploadProgressBar.style.display = 'block';
+                } else {
+                    uploadProgressBar.style.display = 'none';
+                }
+            }
+            
+            // Update processing progress
+            if (data.progress !== undefined) {
+                progressFill.style.width = `${data.progress}%`;
+            }
+            
+            // Get detailed pipeline stage info
+            const progressPercent = data.progress || 0;
+            const stageInfo = getPipelineStage(progressPercent);
+            
+            // Update status text with detailed live backend information
+            if (data.status === 'uploading') {
+                statusText.innerHTML = `<span class="loading"></span> ${data.message}`;
+            } else if (data.status === 'processing') {
+                // Show detailed progress like in the terminal
+                statusText.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px;">
+                        <span class="loading"></span>
+                        <span style="color: #3498db; font-weight: bold;">${progressPercent.toFixed(1)}%</span>
+                        <span>${data.message || stageInfo.description}</span>
+                    </div>
+                    <div style="font-size: 0.9em; color: #666; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 1.2em;">${stageInfo.emoji}</span>
+                        <span>${stageInfo.stage}</span>
+                        ${getTimeEstimate(progressPercent)}
+                    </div>
+                `;
+            } else if (data.status === 'completed') {
+                progressFill.style.width = '100%';
+                statusText.innerHTML = `
+                    <div style="color: #27ae60; font-weight: bold; display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <span style="font-size: 1.2em;">✅</span>
+                        <span>${data.message || 'Processing complete!'}</span>
+                    </div>
+                    <div style="font-size: 0.9em; color: #27ae60;">
+                        🎯 AI Scribe Pipeline Complete! Ready to view results.
+                    </div>
+                `;
+                
+                if (data.output_files) {
+                    filePath.innerHTML = `
+                        <div style="margin-top: 10px; padding: 10px; background: #e8f5e8; border-radius: 8px;">
+                            <strong style="color: #27ae60;">📁 Generated files:</strong><br>
+                            <div style="margin-top: 5px;">
+                                📄 ${data.output_files.txt_file || 'transcript.txt'}<br>
+                                📊 ${data.output_files.json_file || 'results.json'}
+                            </div>
+                        </div>
+                    `;
+                } else if (data.file_path) {
+                    filePath.textContent = `✅ File processed: ${data.file_path}`;
+                }
+            } else if (data.status === 'error') {
+                statusText.innerHTML = `
+                    <div style="color: #e74c3c; font-weight: bold; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 1.2em;">❌</span>
+                        <span>${data.message || 'Processing failed'}</span>
+                    </div>
+                `;
+                uploadProgressBar.style.display = 'none';
+                progressFill.style.width = '0%';
+            }
+        }
+
+        function getPipelineStage(progress) {
+            if (progress < 16.7) return { 
+                emoji: '🎤', 
+                stage: 'Transcribing audio with Whisper AI...', 
+                description: 'Converting speech to text'
+            };
+            if (progress < 33.3) return { 
+                emoji: '👥', 
+                stage: 'Identifying speakers with pyannote...', 
+                description: 'Analyzing voice patterns'
+            };
+            if (progress < 50.0) return { 
+                emoji: '🔗', 
+                stage: 'Aligning speakers with text...', 
+                description: 'Matching speech to speakers'
+            };
+            if (progress < 66.7) return { 
+                emoji: '🧠', 
+                stage: 'Analyzing speaker roles...', 
+                description: 'Determining healthcare roles'
+            };
+            if (progress < 83.3) return { 
+                emoji: '📝', 
+                stage: 'Generating SOAP summary...', 
+                description: 'Creating medical summary'
+            };
+            if (progress < 95.0) return { 
+                emoji: '💬', 
+                stage: 'Creating dialogue file...', 
+                description: 'Finalizing transcript'
+            };
+            return { 
+                emoji: '✅', 
+                stage: 'Finalizing results...', 
+                description: 'Completing processing'
+            };
+        }
+
+        function getTimeEstimate(progress) {
+            if (progress <= 5) return '';
+            
+            // Rough time estimates based on typical processing times
+            const timePerStage = {
+                16.7: 2,   // Transcription: ~2 minutes
+                33.3: 1.5, // Diarization: ~1.5 minutes  
+                50.0: 0.1, // Alignment: ~few seconds
+                66.7: 2,   // Speaker analysis: ~2 minutes
+                83.3: 1.5, // SOAP generation: ~1.5 minutes
+                95.0: 0.1  // File creation: ~few seconds
+            };
+            
+            let remainingTime = 0;
+            for (const [stageProgress, stageTime] of Object.entries(timePerStage)) {
+                if (progress < parseFloat(stageProgress)) {
+                    remainingTime += stageTime;
+                }
+            }
+            
+            if (remainingTime > 0) {
+                const minutes = Math.ceil(remainingTime);
+                return `<span style="color: #888; margin-left: 10px;">(~${minutes} min remaining)</span>`;
+            }
+            return '';
+        }
+
+        function displayTranscript(transcriptText) {
+            // Display raw transcript text in a formatted way
+            transcript.innerHTML = `
+                <h3>🎤 Full Transcript</h3>
+                <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; white-space: pre-wrap; font-family: monospace; max-height: 400px; overflow-y: auto;">
+                    ${transcriptText}
+                </div>
+            `;
+        }
+
+        async function showResults() {
+            try {
+                const response = await fetch(`${API_BASE_URL}/results/${currentJobId}`);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+                
+                const data = await response.json();
+                console.log('Results data received:', data);
+                
+                displayResults(data);
+                results.classList.add('active');
+                
+            } catch (error) {
+                console.error('Failed to load results:', error);
+                showError(`Failed to load results: ${error.message}`);
+            }
+        }
+
+        function displayResults(data) {
+            // Handle nested results structure
+            const results = data.results || data;
+            
+            // Display SOAP note
+            const soap = results.soap_summary?.soap_note;
+            if (soap && !soap.error) {
+                soapNote.innerHTML = `
+                    <h3>📋 SOAP Note Summary</h3>
+                    <div class="soap-section">
+                        <h4>Subjective</h4>
+                        <p>${soap.subjective || 'No subjective information available'}</p>
+                    </div>
+                    <div class="soap-section">
+                        <h4>Objective</h4>
+                        <p>${soap.objective || 'No objective information available'}</p>
+                    </div>
+                    <div class="soap-section">
+                        <h4>Assessment</h4>
+                        <p>${soap.assessment || 'No assessment information available'}</p>
+                    </div>
+                    <div class="soap-section">
+                        <h4>Plan</h4>
+                        <p>${soap.plan || 'No plan information available'}</p>
+                    </div>
+                `;
+            } else {
+                soapNote.innerHTML = `
+                    <h3>📋 SOAP Note Summary</h3>
+                    <div class="soap-section">
+                        <p style="color: #e67e22;">⚠️ SOAP summary could not be generated</p>
+                    </div>
+                `;
+            }
+
+            // Display transcript - try multiple possible paths
+            const segments = results.aligned_segments || results.merged_segments || [];
+            if (segments.length > 0) {
+                transcript.innerHTML = `
+                    <h3>🎤 Speaker Dialogue</h3>
+                    <div style="margin-bottom: 15px; color: #666;">
+                        <strong>Statistics:</strong> ${segments.length} segments, 
+                        ${results.statistics?.unique_speakers || 'Unknown'} speakers,
+                        ${(results.statistics?.total_duration_minutes || 0).toFixed(1)} minutes
+                    </div>
+                    ${segments.map(segment => `
+                        <div class="speaker-line">
+                            <div class="speaker-name">${segment.speaker || 'Unknown'} [${formatTime(segment.start)} - ${formatTime(segment.end)}]</div>
+                            <div class="speaker-text">"${segment.text}"</div>
+                        </div>
+                    `).join('')}
+                `;
+            } else {
+                transcript.innerHTML = `
+                    <h3>🎤 Speaker Dialogue</h3>
+                    <p>No transcript segments available</p>
+                `;
+            }
+
+            // Add download links
+            const inputFile = results.input_file || data.file_path;
+            if (inputFile) {
+                const baseName = inputFile.split(/[\\/]/).pop().replace(/\.[^/.]+$/, '');
+                
+                transcript.innerHTML += `
+                    <div style="text-align: center; margin-top: 25px;">
+                        <a class="btn" href="${API_BASE_URL}/download/${baseName}.txt" target="_blank" style="margin: 5px;">
+                            📄 Download Transcript (.txt)
+                        </a>
+                        <a class="btn" href="${API_BASE_URL}/download/${baseName}.json" target="_blank" style="margin: 5px;">
+                            📊 Download Full Results (.json)
+                        </a>
+                    </div>
+                `;
+            }
+        }
+
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = Math.floor(seconds % 60);
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+
+        function showError(message) {
+            const errorDiv = document.createElement('div');
+            errorDiv.className = 'error';
+            errorDiv.textContent = message;
+            document.querySelector('.upload-area').appendChild(errorDiv);
+            
+            setTimeout(() => {
+                errorDiv.remove();
+            }, 8000);
+        }
+
+        async function checkForCompletedFiles() {
+            try {
+                checkOutputBtn.disabled = true;
+                checkOutputBtn.innerHTML = '<span class="loading"></span> Checking...';
+                
+                const response = await fetch(`${API_BASE_URL}/output-files`);
+                const data = await response.json();
+                
+                if (data.files && data.files.length > 0) {
+                    displayOutputFiles(data.files);
+                } else {
+                    showError('No completed files found in output folder.');
+                }
+                
+            } catch (error) {
+                showError(`Failed to check output folder: ${error.message}`);
+            } finally {
+                checkOutputBtn.disabled = false;
+                checkOutputBtn.innerHTML = 'Check Output Folder';
+            }
+        }
+
+        function displayOutputFiles(files) {
+            // Filter for recent files (within last 24 hours)
+            const recentFiles = files.filter(file => {
+                const fileAge = Date.now() - (file.modified * 1000);
+                return fileAge < 24 * 60 * 60 * 1000; // 24 hours
+            });
+
+            if (recentFiles.length === 0) {
+                showError('No recent files found. Files older than 24 hours are not shown.');
+                return;
+            }
+
+            // Create file list display
+            const fileListHTML = recentFiles.map(file => {
+                const modifiedDate = new Date(file.modified * 1000).toLocaleString();
+                const sizeKB = (file.size / 1024).toFixed(1);
+                
+                return `
+                    <div class="speaker-line" style="margin: 10px 0;">
+                        <div class="speaker-name">${file.filename} (${sizeKB} KB)</div>
+                        <div class="speaker-text">Modified: ${modifiedDate}</div>
+                        <div style="margin-top: 10px;">
+                            <a class="btn" href="${API_BASE_URL}/download/${file.filename}" target="_blank" style="font-size: 0.9em; padding: 8px 16px;">
+                                ⬇️ Download ${file.extension.toUpperCase()}
+                            </a>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            // Show results section with file list
+            results.classList.add('active');
+            soapNote.innerHTML = `
+                <h3>📁 Recent Output Files</h3>
+                <p>Found ${recentFiles.length} recent file(s) in output folder:</p>
+            `;
+            transcript.innerHTML = fileListHTML;
+        }
+
+        // Test API connection on load
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch(`${API_BASE_URL}/health`);
+                if (!response.ok) {
+                    showError('Cannot connect to API server. Make sure it\'s running on localhost:8000');
+                }
+            } catch (error) {
+                showError('Cannot connect to API server. Make sure it\'s running on localhost:8000');
+            }
+        });
+    </script>
+</body>
+</html> 

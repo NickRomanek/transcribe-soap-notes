@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "ai-scribe"
+version = "0.1.0"
+description = "Offline AI transcription and diarization with Whisper, pyannote, and Phi-3"
+authors = ["AI Scribe Contributors"]
+readme = "README.md"
+packages = [{include = "ai_scribe"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+faster-whisper = "^1.0.4"
+"pyannote.audio" = "3.1.*"
+torch = {version="^2.3.0", extras=["cuda118"]}
+sentencepiece = "^0.2.0"
+llama-cpp-python = "^0.2.86"
+gradio = {version="^4.29", optional=true}
+python-dotenv = "^1.0"
+typer = "^0.12.0"
+
+[tool.poetry.group.dev.dependencies]
+black = "^23.0.0"
+ruff = "^0.1.0"
+ipykernel = "^6.25.0"
+jupyterlab = "^4.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api" 

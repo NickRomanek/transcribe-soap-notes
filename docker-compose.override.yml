@@ -1,0 +1,56 @@
+# Docker Compose override for development
+version: '3.8'
+
+services:
+  ai-scribe-api:
+    build:
+      context: .
+      target: builder  # Use builder stage for development
+    volumes:
+      - .:/app  # Mount source code for development
+      - ai-scribe-cache:/app/cache
+    environment:
+      - PYTHONPATH=/app
+      - LOG_LEVEL=DEBUG
+    command: ["python", "api_server.py", "--reload"]
+
+  # Jupyter Lab for development
+  ai-scribe-jupyter:
+    build: .
+    container_name: ai-scribe-jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - .:/app
+      - ai-scribe-cache:/app/cache
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+      - JUPYTER_ENABLE_LAB=yes
+    env_file:
+      - .env
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: ["jupyter", "lab", "--ip=0.0.0.0", "--allow-root", "--no-browser"]
+    profiles:
+      - dev
+
+  # Model downloader service
+  ai-scribe-download:
+    build: .
+    container_name: ai-scribe-download
+    volumes:
+      - ./models:/app/models
+      - ai-scribe-cache:/app/cache
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+    env_file:
+      - .env
+    command: ["python", "download_models.py"]
+    profiles:
+      - download 

@@ -1,0 +1,113 @@
+version: '3.8'
+
+services:
+  # API Server (default)
+  ai-scribe-api:
+    build: .
+    container_name: ai-scribe-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./output:/app/output
+      - ai-scribe-cache:/app/cache
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    env_file:
+      - .env
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: ["python", "api_server.py"]
+    profiles:
+      - api
+      - default
+
+  # Web Interface (Gradio)
+  ai-scribe-web:
+    build: .
+    container_name: ai-scribe-web
+    restart: unless-stopped
+    ports:
+      - "7860:7860"
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./output:/app/output
+      - ai-scribe-cache:/app/cache
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    env_file:
+      - .env
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: ["python", "app_gradio.py"]
+    profiles:
+      - web
+
+  # CLI Interface (for batch processing)
+  ai-scribe-cli:
+    build: .
+    container_name: ai-scribe-cli
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./output:/app/output
+      - ai-scribe-cache:/app/cache
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - CUDA_VISIBLE_DEVICES=${CUDA_VISIBLE_DEVICES:-0}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    env_file:
+      - .env
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    command: ["python", "cli.py", "--help"]
+    profiles:
+      - cli
+
+  # CPU-only version (fallback)
+  ai-scribe-cpu:
+    build: .
+    container_name: ai-scribe-cpu
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data
+      - ./models:/app/models
+      - ./output:/app/output
+      - ai-scribe-cache:/app/cache
+    environment:
+      - HF_TOKEN=${HF_TOKEN}
+      - CUDA_VISIBLE_DEVICES=""
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    env_file:
+      - .env
+    command: ["python", "api_server.py"]
+    profiles:
+      - cpu
+
+volumes:
+  ai-scribe-cache:
+    driver: local 
